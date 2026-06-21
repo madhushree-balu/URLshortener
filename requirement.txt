@@ -2,3 +2,4 @@ django
 mysqlclient
 PyJWT   
 python-dotenv
+psycopg[binary]
