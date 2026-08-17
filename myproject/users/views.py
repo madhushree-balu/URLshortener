@@ -65,28 +65,76 @@ def login(request):
 
 @csrf_exempt
 def shorten_url(request):
+    print("\n========== SHORTEN URL API ==========")
+
     token = request.headers.get("Authorization")
-    payload = jwt.decode(token, "mysecretkey", algorithms=["HS256"])
+    print("Authorization Header:", token)
+
+    if not token:
+        return JsonResponse({
+            "message": "Authorization token is missing"
+        }, status=401)
+
+    try:
+        payload = jwt.decode(
+            token,
+            "mysecretkey",
+            algorithms=["HS256"]
+        )
+
+        print("Decoded Payload:", payload)
+
+    except Exception as e:
+        print("JWT Decode Error:", str(e))
+
+        return JsonResponse({
+            "message": "Invalid Token",
+            "error": str(e)
+        }, status=401)
+
     user_id = payload["user_id"]
-    user = User.objects.get(id=user_id)
 
-    data = json.loads(request.body)
-    # print("BODY:", request.body)
-    # print("DATA:", data)
-    # print("TYPE:", type(data))
+    try:
+        user = User.objects.get(id=user_id)
+
+    except User.DoesNotExist:
+        return JsonResponse({
+            "message": "User not found"
+        }, status=404)
+
+    try:
+        data = json.loads(request.body)
+        print("Request Body:", data)
+
+    except Exception as e:
+        return JsonResponse({
+            "message": "Invalid JSON",
+            "error": str(e)
+        }, status=400)
+
     original_url = data["original_url"]
-    short_url = "".join(random.choices(string.ascii_letters + string.digits, k=6))
-    short_url_obj = ShortUrl.objects.create(
-        user=user, original_url=original_url, short_url=short_url
+
+    short_url = "".join(
+        random.choices(
+            string.ascii_letters + string.digits,
+            k=6
+        )
     )
 
-    return JsonResponse(
-        {
-            "message": "Short URL Created",
-            "original_url": original_url,
-            "short_url": short_url,
-        }
+    ShortUrl.objects.create(
+        user=user,
+        original_url=original_url,
+        short_url=short_url
     )
+
+    print("Short URL Created:", short_url)
+    print("=====================================\n")
+
+    return JsonResponse({
+        "message": "Short URL Created",
+        "original_url": original_url,
+        "short_url": short_url,
+    })
 
 
 def original_url(request, short_url):
@@ -110,6 +158,7 @@ def original_url(request, short_url):
         )
 def all_urls(request):
     token = request.headers.get("Authorization")
+    print("Authorization Header:", token)
     payload = jwt.decode(token, "mysecretkey", algorithms=["HS256"])
     user_id = payload["user_id"]
     user = User.objects.get(id=user_id)    
@@ -120,7 +169,7 @@ def all_urls(request):
     
     # print(allurls)
     return JsonResponse({"urls": allurls})
-
+    
 @csrf_exempt
 def delete_url(request, short_url):
     if request.method != "DELETE":
